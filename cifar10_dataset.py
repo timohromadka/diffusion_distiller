@@ -2,9 +2,9 @@ from torch.utils.data import Dataset
 from torchvision import transforms, datasets
 import torch
 
-class MNISTDataset(Dataset):
+class CIFAR10Dataset(Dataset):
     def __init__(self, path, train=True, transform=None):
-        self.dataset = datasets.MNIST(root=path, train=train, download=True, transform=transform)
+        self.dataset = datasets.CIFAR10(root=path, train=train, download=True, transform=transform)
 
     def __len__(self):
         return len(self.dataset)
@@ -13,17 +13,14 @@ class MNISTDataset(Dataset):
         img, target = self.dataset[index]
         return img, target
 
-class MNISTWrapper(torch.utils.data.Dataset):
-
+class CIFAR10Wrapper(torch.utils.data.Dataset):
     def __init__(self, dataset_dir, train=True):
         super().__init__()
-        # Include the Resize transformation here, before ToTensor
         transform = transforms.Compose([
-            transforms.Resize((32, 32)),  # Resize the images to 32x32
             transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,)),  # Mean and std computed from MNIST dataset
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),  # Mean and std computed from CIFAR10 dataset
         ])
-        self.dataset = MNISTDataset(path=dataset_dir, train=train, transform=transform)
+        self.dataset = CIFAR10Dataset(path=dataset_dir, train=train, transform=transform)
 
     def __getitem__(self, item):
         return self.dataset[item]
