@@ -19,5 +19,5 @@ def make_model():
     return net
 
 def make_dataset():
-    return CelebaWrapper(dataset_dir="./data/celeba_256/", resolution=256)
+    return CelebaWrapper(dataset_dir="celeba_256/", resolution=256)
 
