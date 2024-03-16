@@ -267,6 +267,7 @@ class UNet(nn.Module):
     def __init__(
             self,
             in_channel: StrictInt,
+            out_channel: StrictInt,
             channel: StrictInt,
             channel_multiplier: List[StrictInt],
             n_res_blocks: StrictInt,
@@ -372,7 +373,7 @@ class UNet(nn.Module):
         self.out = nn.Sequential(
             nn.GroupNorm(group_norm, in_channel),
             Swish(),
-            conv2d(in_channel, 3 * (fold ** 2), 3, padding=1, scale=1e-10),
+            conv2d(in_channel, out_channel * (fold ** 2), 3, padding=1, scale=1e-10),
         )
 
     def forward(self, input, time):
