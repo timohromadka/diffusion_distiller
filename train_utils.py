@@ -64,35 +64,28 @@ def make_visualization(diffusion, device, image_size, need_tqdm=False, eta=0, cl
     return images_
 
 
-def make_iter_callback(diffusion, device, checkpoint_path, image_size, tensorboard, log_interval, ckpt_interval, need_tqdm=False):
+def make_iter_callback(diffusion, device, checkpoint_path, image_size, tensorboard, log_step_interval, ckpt_step_interval, need_tqdm=False):
     state = {
-        "initialized": False,
-        "last_log": None,
-        "last_ckpt": None
+        "last_ckpt_step": 0,
+        "last_log_step": 0,
     }
 
     def iter_callback(N, loss, last=False):
-        from datetime import datetime
-        t = datetime.now()
-        if True:
-            tensorboard.add_scalar("loss", loss, N)
-        if not state["initialized"]:
-            state["initialized"] = True
-            state["last_log"] = t
-            state["last_ckpt"] = t
-            return
-        if ((t - state["last_ckpt"]).total_seconds() / 60 > ckpt_interval) or last:
-            torch.save({"G": diffusion.net_.state_dict(), "n_timesteps": diffusion.num_timesteps, "time_scale": diffusion.time_scale}, os.path.join(checkpoint_path, f"checkpoint.pt"))
-            print("Saved.")
-            state["last_ckpt"] = t
-        if ((t - state["last_log"]).total_seconds() / 60 > log_interval) or last:
+        if N - state["last_ckpt_step"] >= ckpt_step_interval or last:
+            torch.save({"G": diffusion.net_.state_dict(), "n_timesteps": diffusion.num_timesteps, "time_scale": diffusion.time_scale}, os.path.join(checkpoint_path, f"checkpoint_{N}.pt"))
+            print(f"Checkpoint saved at step {N}.")
+            state["last_ckpt_step"] = N
+
+        if N - state["last_log_step"] >= log_step_interval or last:
             images_ = make_visualization(diffusion, device, image_size, need_tqdm)
             images_ = cv2.cvtColor(images_, cv2.COLOR_BGR2RGB)
             tensorboard.add_image("visualization", images_, global_step=N, dataformats='HWC')
             tensorboard.flush()
-            state["last_log"] = t
+            print(f"Logged images at step {N}.")
+            state["last_log_step"] = N
 
     return iter_callback
+
 
 
 class InfinityDataset(torch.utils.data.Dataset):
@@ -136,7 +129,7 @@ class DiffusionTrain:
             loss = diffusion.p_loss(img, time, extra_args)
             L_tot += loss.item()
             N += 1
-            wandb.log({"train_loss": loss.item()}, step=N)
+            # wandb.log({"train_loss": loss.item()}, step=N)
             pbar.set_description(f"Loss: {L_tot / N}")
             loss.backward()
             nn.utils.clip_grad_norm_(diffusion.net_.parameters(), 1)
@@ -146,24 +139,7 @@ class DiffusionTrain:
             if scheduler.stop(N, total_steps):
                 break
         on_iter(N, loss.item(), last=True)
-        
-    def validate(diffusion, val_loader, device, make_extra_args=make_none_args):
-        diffusion.net_.eval()  # Ensure the model is in evaluation mode
-        total_loss = 0.0
-        total_count = 0
-        with torch.no_grad():  # No gradients needed for validation
-            for img, label in tqdm(val_loader, desc="Validating"):
-                img = img.to(device)
-                time = torch.randint(0, diffusion.num_timesteps, (img.shape[0],), device=device)
-                extra_args = make_extra_args(img, label, device)
-                loss = diffusion.p_loss(img, time, extra_args)
-                total_loss += loss.item() * img.size(0)
-                total_count += img.size(0)
-        avg_loss = total_loss / total_count
-        diffusion.net_.train()  # Set the model back to training mode
-        return avg_loss
-
-
+    
 
 class DiffusionDistillation:
 
@@ -190,7 +166,7 @@ class DiffusionDistillation:
             L = loss.item()
             L_tot += L
             N += 1
-            wandb.log({"train_loss": loss.item()}, step=N)
+            # wandb.log({"train_loss": loss.item()}, step=N)
             pbar.set_description(f"Loss: {L_tot / N}")
             loss.backward()
             scheduler.step()
@@ -219,7 +195,7 @@ class DiffusionDistillation:
             L = loss.item()
             L_tot += L
             N += 1
-            wandb.log({"train_loss": loss.item()}, step=N)
+            # wandb.log({"train_loss": loss.item()}, step=N)
             pbar.set_description(f"Loss: {L_tot / N}")
             loss.backward()
             scheduler.step()

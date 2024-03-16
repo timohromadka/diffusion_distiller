@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import argparse
+from datetime import datetime
 import importlib
 from v_diffusion import make_beta_schedule
 from moving_average import init_ema_model
@@ -22,14 +23,17 @@ def make_argument_parser():
     parser.add_argument("--lr", help="Learning rate.", type=float, default=5e-5)
     parser.add_argument("--scheduler", help="Learning rate scheduler.", type=str, default="StrategyConstantLR")
     parser.add_argument("--diffusion", help="Diffusion model.", type=str, default="GaussianDiffusion")
-    parser.add_argument("--log_interval", help="Log interval in minutes.", type=int, default=15)
-    parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
+    # parser.add_argument("--log_interval", help="Log interval in minutes.", type=int, default=15)
+    # parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
+    parser.add_argument("--ckpt_step_interval", help="Checkpoints saving interval in steps.", type=int, default=1000)
+    parser.add_argument("--log_step_interval", help="Log interval in steps for image generation.", type=int, default=500)
     parser.add_argument("--num_workers", type=int, default=-1)
     
     # wandb args
-    parser.add_argument("--wandb_run_name", help="W&B run name for logging.", type=str, default="")
-    parser.add_argument("--wandb_entity", help="W&B entity (user or team) under which the project is located.", type=str, default="")
-    parser.add_argument("--project_name", help="W&B project name for logging.", type=str, default="my_project")
+    parser.add_argument("--wandb_run_name", help="W&B run name for logging.", type=str, default=datetime.now().strftime("%Y%m%d_%H%M%S"))
+    parser.add_argument("--wandb_entity", help="W&B entity (user or team) under which the project is located.", type=str, default="timohrom")
+    parser.add_argument("--project_name", help="W&B project name for logging.", type=str, default="diffusion_distiller_testing")
+    parser.add_argument("--offline_mode", help="W&B project name for logging.", action='store_true')
     return parser
 
 
@@ -40,7 +44,9 @@ def train_model(args, make_model, make_dataset):
     # print(args)
     print(' '.join(f'{k}={v}' for k, v in vars(args).items()))
     
-    wandb.init(project=args.project_name, entity=args.wandb_entity, name=args.wandb_run_name, config=args)
+    # if args.offline_mode:
+    #     os.environ['WANDB_MODE'] = 'offline'
+    # wandb.init(project=args.project_name, entity=args.wandb_entity, name=args.wandb_run_name, config=args)
 
     device = torch.device("cuda")
     train_dataset = test_dataset = InfinityDataset(make_dataset(), args.num_iters)
@@ -91,13 +97,13 @@ def train_model(args, make_model, make_dataset):
 
     image_size = teacher.image_size
 
-    on_iter = make_iter_callback(teacher_ema_diffusion, device, checkpoints_dir, image_size, tensorboard, args.log_interval, args.ckpt_interval, False)
+    on_iter = make_iter_callback(teacher_ema_diffusion, device, checkpoints_dir, image_size, tensorboard, args.log_step_interval, args.ckpt_step_interval, False)
     diffusion_train = DiffusionTrain(scheduler)
     diffusion_train.train(train_loader, teacher_diffusion, teacher_ema, args.lr, device, make_extra_args=make_condition, on_iter=on_iter)
     print("Finished.")
     
     # At the end of train_model
-    wandb.finish()
+    # wandb.finish()
 
 
 if __name__ == "__main__":
