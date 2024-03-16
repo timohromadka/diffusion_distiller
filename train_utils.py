@@ -7,6 +7,7 @@ from torch import nn
 from tqdm import tqdm
 from moving_average import moving_average
 from strategies import *
+import wandb
 
 @torch.no_grad()
 def p_sample_loop(diffusion, noise, extra_args, device, eta=0, samples_to_capture=-1, need_tqdm=True, clip_value=3):
@@ -135,6 +136,7 @@ class DiffusionTrain:
             loss = diffusion.p_loss(img, time, extra_args)
             L_tot += loss.item()
             N += 1
+            wandb.log({"train_loss": loss.item()}, step=N)
             pbar.set_description(f"Loss: {L_tot / N}")
             loss.backward()
             nn.utils.clip_grad_norm_(diffusion.net_.parameters(), 1)
@@ -171,6 +173,7 @@ class DiffusionDistillation:
             L = loss.item()
             L_tot += L
             N += 1
+            wandb.log({"train_loss": loss.item()}, step=N)
             pbar.set_description(f"Loss: {L_tot / N}")
             loss.backward()
             scheduler.step()
@@ -199,6 +202,7 @@ class DiffusionDistillation:
             L = loss.item()
             L_tot += L
             N += 1
+            wandb.log({"train_loss": loss.item()}, step=N)
             pbar.set_description(f"Loss: {L_tot / N}")
             loss.backward()
             scheduler.step()

@@ -5,10 +5,13 @@ import importlib
 from v_diffusion import make_beta_schedule
 from moving_average import init_ema_model
 from torch.utils.tensorboard import SummaryWriter
+import wandb
+
 from train_utils import *
 
 def make_argument_parser():
     parser = argparse.ArgumentParser()
+    # training args
     parser.add_argument("--module", help="Model module.", type=str, required=True)
     parser.add_argument("--name", help="Experiment name. Data will be saved to ./checkpoints/<name>/<dname>/.", type=str, required=True)
     parser.add_argument("--dname", help="Distillation name. Data will be saved to ./checkpoints/<name>/<dname>/.", type=str, required=True)
@@ -22,6 +25,11 @@ def make_argument_parser():
     parser.add_argument("--log_interval", help="Log interval in minutes.", type=int, default=15)
     parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
     parser.add_argument("--num_workers", type=int, default=-1)
+    
+    # wandb args
+    parser.add_argument("--wandb_run_name", help="W&B run name for logging.", type=str, default="")
+    parser.add_argument("--wandb_entity", help="W&B entity (user or team) under which the project is located.", type=str, default="")
+    parser.add_argument("--project_name", help="W&B project name for logging.", type=str, default="my_project")
     return parser
 
 
@@ -31,6 +39,8 @@ def train_model(args, make_model, make_dataset):
 
     # print(args)
     print(' '.join(f'{k}={v}' for k, v in vars(args).items()))
+    
+    wandb.init(project=args.project_name, entity=args.wandb_entity, name=args.wandb_run_name, config=args)
 
     device = torch.device("cuda")
     train_dataset = test_dataset = InfinityDataset(make_dataset(), args.num_iters)
@@ -85,6 +95,10 @@ def train_model(args, make_model, make_dataset):
     diffusion_train = DiffusionTrain(scheduler)
     diffusion_train.train(train_loader, teacher_diffusion, teacher_ema, args.lr, device, make_extra_args=make_condition, on_iter=on_iter)
     print("Finished.")
+    
+    # At the end of train_model
+    wandb.finish()
+
 
 if __name__ == "__main__":
     parser = make_argument_parser()
