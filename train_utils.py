@@ -146,6 +146,23 @@ class DiffusionTrain:
             if scheduler.stop(N, total_steps):
                 break
         on_iter(N, loss.item(), last=True)
+        
+    def validate(diffusion, val_loader, device, make_extra_args=make_none_args):
+        diffusion.net_.eval()  # Ensure the model is in evaluation mode
+        total_loss = 0.0
+        total_count = 0
+        with torch.no_grad():  # No gradients needed for validation
+            for img, label in tqdm(val_loader, desc="Validating"):
+                img = img.to(device)
+                time = torch.randint(0, diffusion.num_timesteps, (img.shape[0],), device=device)
+                extra_args = make_extra_args(img, label, device)
+                loss = diffusion.p_loss(img, time, extra_args)
+                total_loss += loss.item() * img.size(0)
+                total_count += img.size(0)
+        avg_loss = total_loss / total_count
+        diffusion.net_.train()  # Set the model back to training mode
+        return avg_loss
+
 
 
 class DiffusionDistillation:
