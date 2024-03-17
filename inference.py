@@ -1,5 +1,6 @@
 import argparse
 import copy
+import cv2
 import torch
 from tqdm import tqdm
 import numpy as np
@@ -81,6 +82,8 @@ def run_inference(args, make_model, make_dataset):
     base_fid.requires_grad_(False)
     
     for images, _ in tqdm(test_loader, desc='Loading desired amount of test set onto FID object'):
+        if images.shape[1] == 1:  # Check if the images are grayscale
+            images = images.repeat(1, 3, 1, 1)  # Repeat the grayscale channel 3 times
         base_fid.update(images.to(device), real=True)
     
     fids = {}
@@ -88,21 +91,45 @@ def run_inference(args, make_model, make_dataset):
         fid = copy.deepcopy(base_fid)
         fids[sampling_timestep] = fid
     
+    logged_images_count = 0
+    
     # Now, generate images all at once, but we save intermediate steps for efficiency
     num_batches = (args.num_fid_samples + args.batch_size - 1) // args.batch_size
-    for _ in tqdm(range(num_batches), desc='Generating images in batches'):
-        batch_size = min(args.batch_size, args.num_fid_samples - _ * args.batch_size)
-        images = make_visualization_timestep(ema_diffusion_model, device, image_size, args.sampling_timesteps, batch_size=batch_size, need_tqdm=False, eta=0, clip_value=1.2)
-        # Process generated batch images as needed
-
-                    
+    for batch_index in tqdm(range(num_batches), desc='Generating images in batches'):
+        batch_size = min(args.batch_size, args.num_fid_samples - batch_index * args.batch_size)
+        images_for_each_timestep = make_visualization_timestep(ema_diffusion_model, device, image_size, args.sampling_timesteps, batch_size=batch_size, need_tqdm=False, eta=0, clip_value=1.2)
+    
+        for timestep, imgs in zip(args.sampling_timesteps, images_for_each_timestep):
+            # duplicate channel to reach 3 channels if grayscale image
+            if imgs.shape[1] == 1: 
+                imgs = imgs.repeat(1, 3, 1, 1) 
+                
+            # normalize to [0,1], then scale to [0,255]
+            imgs = (255 * (imgs + 1) / 2).clamp(0, 255).to(torch.uint8)
+            
+            if logged_images_count < args.num_images_to_log:
+                images_to_log = min(args.num_images_to_log - logged_images_count, batch_size)
+                imgs_trunc = imgs[:images_to_log] 
+                imgs_trunc = imgs_trunc.to(device)
+                imgs_permuted = imgs_trunc.permute(0, 2, 3, 1)
+                
+                # log to tensorboard
+                tensorboard.add_images(f'Generated_images/timestep_{timestep}', imgs_permuted, global_step=timestep, dataformats='NHWC')
+                logged_images_count += images_to_log   
+                
+            # append to fid object with normalize flag to False   
+            # " if normalize is set to False images are expected to have dtype uint8 and take values in the [0, 255] range"  
+            fids[timestep].update(imgs.to(device), real=False)                           
 
     # Calculate FID score for each of the sampling_timesteps
     # and save to tensorboard
     for timestep, fid in fids.items():
+        print(f'Computing FID score for {timestep} timesteps.')
         fid_score = fid.compute()
         print(f"FID score for {timestep} timesteps: {fid_score}")
         tensorboard.add_scalar(f"fid_{timestep}", fid_score, timestep)
+        
+    print('Finished!')
 
 if __name__ == "__main__":
     parser = make_argument_parser()
