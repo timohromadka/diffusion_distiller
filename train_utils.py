@@ -9,8 +9,48 @@ from moving_average import moving_average
 from strategies import *
 import wandb
 
+# Sampling with re-use over numerous timesteps
 @torch.no_grad()
-def p_sample_loop(diffusion, noise, extra_args, device, eta=0, samples_to_capture=-1, need_tqdm=True, clip_value=3):
+def p_sample_timestep_loop(diffusion, noise, extra_args, device, eta=0, need_tqdm=True, capture_timesteps=[128, 512, 1024], clip_value=1.2):
+    mode = diffusion.net_.training
+    diffusion.net_.eval()
+    img = noise
+    imgs = []
+    iter_ = reversed(range(diffusion.num_timesteps))
+    capture_set = set(capture_timesteps)  # set for efficient lookup
+    if need_tqdm:
+        iter_ = tqdm(iter_)
+    for i in iter_:
+        img = diffusion.p_sample(
+            img,
+            torch.full((img.shape[0],), i, dtype=torch.int64).to(device),
+            extra_args,
+            eta=eta,
+            clip_value=clip_value
+        )
+        if diffusion.num_timesteps - i in capture_set:
+            imgs.append(img.clone())  # Clone to ensure we're not just appending references to the same tensor
+    diffusion.net_.train(mode)
+    return imgs
+
+def make_visualization_timestep_(diffusion, device, image_size, timesteps, need_tqdm=False, eta=0, clip_value=1.2):
+    extra_args = {}
+    noise = torch.randn(image_size, device=device)
+    imgs = p_sample_timestep_loop(diffusion, noise, extra_args, "cuda", eta=eta, need_tqdm=need_tqdm, capture_timesteps=timesteps, clip_value=clip_value)
+    # return an image for each timestep
+    return imgs
+
+
+def make_visualization_timestep(diffusion, device, image_size, timesteps, need_tqdm=False, eta=0, clip_value=1.2):
+    images_ = make_visualization_(diffusion, device, image_size, timesteps, need_tqdm=need_tqdm, eta=eta, clip_value=clip_value)
+    images_ = images_[0].permute(1, 2, 0).cpu().numpy()
+    images_ = (255 * (images_ + 1) / 2).clip(0, 255).astype(np.uint8)
+    return images_
+
+
+# Normal code for singular sampling
+@torch.no_grad()
+def p_sample_loop(diffusion, noise, extra_args, device, eta=0, samples_to_capture=-1, need_tqdm=True, clip_value=1.2):
     mode = diffusion.net_.training
     diffusion.net_.eval()
     img = noise
