@@ -20,6 +20,8 @@ def make_argument_parser():
     parser.add_argument("--lr", help="Learning rate.", type=float, default=0.0002)
     parser.add_argument("--scheduler", help="Learning rate scheduler.", type=str, default="StrategyLinearLR")
     parser.add_argument("--diffusion", help="Diffusion model.", type=str, default="GaussianDiffusionDefault")
+    
+    parser.add_argument("--skip_factor", help="Number of steps to skip during progressive distillation. Default is 2, as from the original paper.", type=int, default=2)
     # parser.add_argument("--log_interval", help="Log interval in minutes.", type=int, default=15)
     # parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
     parser.add_argument("--ckpt_step_interval", help="Checkpoints saving interval in steps.", type=int, default=1000)
@@ -101,9 +103,9 @@ def distill_model(args, make_model, make_dataset):
         print("Teacher parameters copied.")
     else:
         print("Continue training...")
-    student_diffusion = make_diffusion(student, teacher_ema_diffusion.num_timesteps // 2, teacher_ema_diffusion.time_scale * 2, device)
+    student_diffusion = make_diffusion(student, teacher_ema_diffusion.num_timesteps // args.skip_factor, teacher_ema_diffusion.time_scale * args.skip_factor, device)
     if need_student_ema:
-        student_ema_diffusion = make_diffusion(student_ema, teacher_ema_diffusion.num_timesteps // 2, teacher_ema_diffusion.time_scale * 2, device)
+        student_ema_diffusion = make_diffusion(student_ema, teacher_ema_diffusion.num_timesteps // args.skip_factor, teacher_ema_diffusion.time_scale * args.skip_factor, device)
 
     on_iter = make_iter_callback(student_ema_diffusion, device, checkpoints_dir, image_size, tensorboard, args.log_step_interval, args.ckpt_step_interval, False)
     distillation_model.train_student(distill_train_loader, teacher_ema_diffusion, student_diffusion, student_ema, args.lr, device, make_extra_args=make_condition, on_iter=on_iter)
