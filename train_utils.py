@@ -68,9 +68,12 @@ def make_iter_callback(diffusion, device, checkpoint_path, image_size, tensorboa
     state = {
         "last_ckpt_step": 0,
         "last_log_step": 0,
+        "image_log_steps": [16, 64, 128], # i've decided to hard code these in because i wanted to see what earlier time steps look like
     }
 
     def iter_callback(N, loss, last=False):
+        tensorboard.add_scalar("loss", loss, N)
+        
         if N - state["last_ckpt_step"] >= ckpt_step_interval or last:
             torch.save({"G": diffusion.net_.state_dict(), "n_timesteps": diffusion.num_timesteps, "time_scale": diffusion.time_scale}, os.path.join(checkpoint_path, f"checkpoint_{N}.pt"))
             print(f"Checkpoint saved at step {N}.")
@@ -80,9 +83,16 @@ def make_iter_callback(diffusion, device, checkpoint_path, image_size, tensorboa
             images_ = make_visualization(diffusion, device, image_size, need_tqdm)
             images_ = cv2.cvtColor(images_, cv2.COLOR_BGR2RGB)
             tensorboard.add_image("visualization", images_, global_step=N, dataformats='HWC')
-            tensorboard.flush()
             print(f"Logged images at step {N}.")
             state["last_log_step"] = N
+            
+        if N in state["image_log_steps"]:
+            images_ = make_visualization(diffusion, device, image_size, need_tqdm)
+            images_ = cv2.cvtColor(images_, cv2.COLOR_BGR2RGB)
+            tensorboard.add_image(f"visualization", images_, global_step=N, dataformats='HWC')
+            print(f"Logged special images at step {N}.")
+            
+        tensorboard.flush()  # Ensure the data is written to disk
 
     return iter_callback
 
