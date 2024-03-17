@@ -8,7 +8,7 @@ BASE_TIME_SCALE = 1
 def make_model():
     net = UNet(
         in_channel=3,  # Color images for CIFAR10
-        in_channel=3,
+        out_channel=3,
         channel=128-16,
         channel_multiplier=[1, 2, 2, 4, 4],
         n_res_blocks=2,
