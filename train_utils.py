@@ -33,16 +33,16 @@ def p_sample_timestep_loop(diffusion, noise, extra_args, device, eta=0, need_tqd
     diffusion.net_.train(mode)
     return imgs
 
-def make_visualization_timestep_(diffusion, device, image_size, timesteps, need_tqdm=False, eta=0, clip_value=1.2):
+def make_visualization_timestep_(diffusion, device, image_size, timesteps, batch_size=1, need_tqdm=False, eta=0, clip_value=1.2):
     extra_args = {}
-    noise = torch.randn(image_size, device=device)
-    imgs = p_sample_timestep_loop(diffusion, noise, extra_args, "cuda", eta=eta, need_tqdm=need_tqdm, capture_timesteps=timesteps, clip_value=clip_value)
-    # return an image for each timestep
+    # Adjust noise to generate a batch of images
+    noise = torch.randn((batch_size, *image_size), device=device)
+    imgs = p_sample_timestep_loop(diffusion, noise, extra_args, device, eta=eta, need_tqdm=need_tqdm, capture_timesteps=timesteps, clip_value=clip_value)
     return imgs
 
 
-def make_visualization_timestep(diffusion, device, image_size, timesteps, need_tqdm=False, eta=0, clip_value=1.2):
-    images_ = make_visualization_(diffusion, device, image_size, timesteps, need_tqdm=need_tqdm, eta=eta, clip_value=clip_value)
+def make_visualization_timestep(diffusion, device, image_size, timesteps, batch_size=1, need_tqdm=False, eta=0, clip_value=1.2):
+    images_ = make_visualization_timestep_(diffusion, device, image_size, timesteps, batch_size=batch_size, need_tqdm=True, eta=eta, clip_value=clip_value)
     images_ = images_[0].permute(1, 2, 0).cpu().numpy()
     images_ = (255 * (images_ + 1) / 2).clip(0, 255).astype(np.uint8)
     return images_
