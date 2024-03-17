@@ -17,12 +17,15 @@ def make_argument_parser():
     parser.add_argument("--checkpoint_to_continue", help="Path to checkpoint.", type=str, default="")
     parser.add_argument("--num_iters", help="Num iterations.", type=int, default=5000)
     parser.add_argument("--batch_size", help="Batch size.", type=int, default=1)
-    parser.add_argument("--lr", help="Learning rate.", type=float, default=0.3 * 5e-5)
+    parser.add_argument("--lr", help="Learning rate.", type=float, default=0.0002)
     parser.add_argument("--scheduler", help="Learning rate scheduler.", type=str, default="StrategyLinearLR")
     parser.add_argument("--diffusion", help="Diffusion model.", type=str, default="GaussianDiffusionDefault")
-    parser.add_argument("--log_interval", help="Log interval in minutes.", type=int, default=15)
-    parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
-    parser.add_argument("--num_workers", type=int, default=-1)
+    # parser.add_argument("--log_interval", help="Log interval in minutes.", type=int, default=15)
+    # parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
+    parser.add_argument("--ckpt_step_interval", help="Checkpoints saving interval in steps.", type=int, default=1000)
+    parser.add_argument("--log_step_interval", help="Log interval in steps for image generation.", type=int, default=1000)
+    
+    parser.add_argument("--num_workers", type=int, default=2)
     return parser
 
 def distill_model(args, make_model, make_dataset):
@@ -102,7 +105,7 @@ def distill_model(args, make_model, make_dataset):
     if need_student_ema:
         student_ema_diffusion = make_diffusion(student_ema, teacher_ema_diffusion.num_timesteps // 2, teacher_ema_diffusion.time_scale * 2, device)
 
-    on_iter = make_iter_callback(student_ema_diffusion, device, checkpoints_dir, image_size, tensorboard, args.log_interval, args.ckpt_interval, False)
+    on_iter = make_iter_callback(student_ema_diffusion, device, checkpoints_dir, image_size, tensorboard, args.log_step_interval, args.ckpt_step_interval, False)
     distillation_model.train_student(distill_train_loader, teacher_ema_diffusion, student_diffusion, student_ema, args.lr, device, make_extra_args=make_condition, on_iter=on_iter)
     print("Finished.")
 
