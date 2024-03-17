@@ -6,7 +6,6 @@ import importlib
 from v_diffusion import make_beta_schedule
 from moving_average import init_ema_model
 from torch.utils.tensorboard import SummaryWriter
-import wandb
 
 from train_utils import *
 
@@ -19,7 +18,7 @@ def make_argument_parser():
     parser.add_argument("--checkpoint_to_continue", help="Path to checkpoint.", type=str, default="")
     parser.add_argument("--num_timesteps", help="Num diffusion steps.", type=int, default=1024)
     parser.add_argument("--num_iters", help="Num iterations.", type=int, default=100000)
-    parser.add_argument("--batch_size", help="Batch size.", type=int, default=1)
+    parser.add_argument("--batch_size", help="Batch size.", type=int, default=16)
     parser.add_argument("--lr", help="Learning rate.", type=float, default=5e-5)
     parser.add_argument("--scheduler", help="Learning rate scheduler.", type=str, default="StrategyConstantLR")
     parser.add_argument("--diffusion", help="Diffusion model.", type=str, default="GaussianDiffusion")
