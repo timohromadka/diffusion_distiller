@@ -26,7 +26,7 @@ def make_argument_parser():
     # parser.add_argument("--log_interval", help="Log interval in minutes.", type=int, default=15)
     # parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
     parser.add_argument("--ckpt_step_interval", help="Checkpoints saving interval in steps.", type=int, default=1000)
-    parser.add_argument("--log_step_interval", help="Log interval in steps for image generation.", type=int, default=500)
+    parser.add_argument("--log_step_interval", help="Log interval in steps for image generation.", type=int, default=1000)
     parser.add_argument("--num_workers", type=int, default=-1)
     
     # wandb args
@@ -49,7 +49,8 @@ def train_model(args, make_model, make_dataset):
     # wandb.init(project=args.project_name, entity=args.wandb_entity, name=args.wandb_run_name, config=args)
 
     device = torch.device("cuda")
-    train_dataset = test_dataset = InfinityDataset(make_dataset(), args.num_iters)
+    train_dataset = InfinityDataset(make_dataset(), args.num_iters*args.batch_size)
+    test_dataset = InfinityDataset(make_dataset(train=False), args.num_iters*args.batch_size)
 
     len(train_dataset), len(test_dataset)
 
