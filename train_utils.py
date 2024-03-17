@@ -36,6 +36,8 @@ def p_sample_timestep_loop(diffusion, noise, extra_args, device, eta=0, need_tqd
 def make_visualization_timestep_(diffusion, device, image_size, timesteps, batch_size=1, need_tqdm=False, eta=0, clip_value=1.2):
     extra_args = {}
     # Adjust noise to generate a batch of images
+    if image_size[0] == 1:
+        image_size = image_size[1:]
     noise = torch.randn((batch_size, *image_size), device=device)
     imgs = p_sample_timestep_loop(diffusion, noise, extra_args, device, eta=eta, need_tqdm=need_tqdm, capture_timesteps=timesteps, clip_value=clip_value)
     return imgs
@@ -43,10 +45,7 @@ def make_visualization_timestep_(diffusion, device, image_size, timesteps, batch
 
 def make_visualization_timestep(diffusion, device, image_size, timesteps, batch_size=1, need_tqdm=False, eta=0, clip_value=1.2):
     images_ = make_visualization_timestep_(diffusion, device, image_size, timesteps, batch_size=batch_size, need_tqdm=True, eta=eta, clip_value=clip_value)
-    images_ = images_[0].permute(1, 2, 0).cpu().numpy()
-    images_ = (255 * (images_ + 1) / 2).clip(0, 255).astype(np.uint8)
     return images_
-
 
 # Normal code for singular sampling
 @torch.no_grad()
