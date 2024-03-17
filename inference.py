@@ -1,82 +1,107 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 import argparse
 import torch
-from torch.utils.data import DataLoader
-from torchmetrics.image.fid import FrechetInceptionDistance
+from tqdm import tqdm
 import numpy as np
+from torchmetrics.image.fid import FrechetInceptionDistance
 import importlib
-from PIL import Image
-from torchvision.transforms.functional import to_tensor, to_pil_image
-from train_utils import InfinityDataset, make_dataset
+import os
+from torchvision.utils import save_image
+from torch.utils.tensorboard import SummaryWriter
 
-def convert_grayscale_to_rgb(image):
-    """Converts a 1-channel grayscale image to a 3-channel RGB image."""
-    return image.repeat(3, 1, 1) if image.shape[0] == 1 else image
+from train_utils import make_visualization_timestep, InfinityDataset
+from v_diffusion import make_beta_schedule
 
-def generate_images(model, device, num_samples, timestep, previously_generated_images=None):
-    """
-    Generates images using the model for the specified timestep.
-    If applicable, reuses previously generated images.
-    """
-    # Check if we can reuse previously generated images
-    if previously_generated_images is not None and previously_generated_images["timestep"] <= timestep:
-        return previously_generated_images["images"]
 
-    # Example placeholder function for generating images. Replace with your actual image generation logic.
-    # Assuming the model generates images in the shape: [num_samples, 3, 256, 256]
-    generated_images = torch.randn(num_samples, 3, 256, 256, device=device)  # Example tensor shape, adjust accordingly.
+def load_checkpoint(checkpoint_path, device, make_diffusion, make_model):
+    ckpt = torch.load(checkpoint_path, map_location=device)
+    model = make_model().to(device)
+    model.load_state_dict(ckpt['G'])
+    ema_model = make_model().to(device)
+    ema_model.load_state_dict(ckpt['G_ema'])
     
-    # Store newly generated images
-    return {"timestep": timestep, "images": generated_images}
+    n_timesteps = ckpt["n_timesteps"]
+    time_scale = ckpt["time_scale"]
+    
+    ema_diffusion_model = make_diffusion(model, n_timesteps, time_scale, device)
+    return ema_diffusion_model
 
-def compute_fid_for_timesteps(model, device, test_loader, fid, args):
-    """Computes FID for each timestep specified in args.sampling_timesteps, reusing generated images where possible."""
-    previously_generated_images = None
-    for timestep in sorted(args.sampling_timesteps):
-        # Reset real features for each timestep
-        fid.reset_real_features()
-        with torch.no_grad():
-            # Update FID with features from test dataset
-            for batch in test_loader:
-                images, _ = batch
-                images = images.to(device)
-                images = torch.stack([convert_grayscale_to_rgb(image) for image in images])
-                fid.update(images, real=True)
-            
-            # Generate or reuse images and update FID
-            previously_generated_images = generate_images(model, device, args.num_fid_samples, timestep, previously_generated_images)
-            generated_images = previously_generated_images["images"]
-            generated_images = torch.stack([convert_grayscale_to_rgb(image) for image in generated_images])
-            fid.update(generated_images, real=False)
-        
-        # Compute FID score
-        fid_score = fid.compute()
-        print(f"FID score for timestep {timestep}: {fid_score}")
-
-def main():
-    parser = argparse.ArgumentParser(description='Generate images and compute FID against a test dataset.')
-    parser.add_argument('--num_fid_samples', type=int, required=True, help='Number of images to generate for FID calculation.')
-    parser.add_argument('--sampling_timesteps', type=int, nargs='+', required=True, help='List of timesteps for image generation.')
-    args = parser.parse_args()
-
+def make_argument_parser():
+    parser = argparse.ArgumentParser(description="Model Inference and FID Calculation")  
+    parser.add_argument("--module", help="Model module.", type=str, required=True)
+    parser.add_argument("--name", help="Experiment name. Data will be saved to ./checkpoints/<name>/<dname>/.", type=str, required=True)
+    parser.add_argument("--dname", help="Distillation name. Data will be saved to ./checkpoints/<name>/<dname>/.", type=str, required=True)
+    
+    parser.add_argument("--checkpoint_path", required=True, type=str, help="Path to the model checkpoint.")
+    parser.add_argument("--num_fid_samples", default=50, type=int, help="Number of images to generate for FID calculation.")
+    parser.add_argument("--sampling_timesteps", nargs="+", type=int, default=[256, 512, 1024], help="Timesteps for image sampling.")
+    parser.add_argument("--num_images_to_log", type=int, default=16, help="How many images to save for logging purposes?.")
+    return parser
+    
+def run_inference(args, make_model, make_dataset):
+    print(' '.join(f'{k}={v}' for k, v in vars(args).items()))
+    
+    checkpoints_dir = os.path.join("checkpoints", args.name, args.dname)
+    if not os.path.exists(checkpoints_dir):
+        os.makedirs(checkpoints_dir)
+    
+    def make_diffusion(model, n_timestep, time_scale, device):
+        betas = make_beta_schedule("cosine", cosine_s=8e-3, n_timestep=n_timestep).to(device)
+        M = importlib.import_module("v_diffusion")
+        D = getattr(M, args.diffusion)
+        return D(model, betas, time_scale=time_scale)
+    
+    
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ema_diffusion_model = load_checkpoint(args.checkpoint_path, device, make_diffusion, make_model)
+    
+    if 'mnist' in args.checkpoint_path:
+        args.module = 'mnist_model'
+    elif 'cifar10' in args.checkpoint_path:
+        args.module = 'cifar10_model'
+    
+    tensorboard = SummaryWriter(os.path.join(args.checkpoints_dir, "tensorboard"))
+    
+    # we only need args.num_fid_samples from the dataset
+    test_dataset = InfinityDataset(make_dataset(train=False), args.num_fid_samples)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=ema_diffusion_model.batch_size, shuffle=False, num_workers=ema_diffusion_model.num_workers)
 
-    # Placeholder for loading your model
-    model = torch.nn.Module()  # Replace with your model loading logic
-    model.to(device)
 
-    # Initialize FID
-    fid = FrechetInceptionDistance(normalize=True, reset_real_features=False)
-    fid.persistent(mode=True)
-    fid.requires_grad_(False)
+    # First, initialize FID objects with the real images from the test set
+    fids = {}
+    for sampling_timestep in args.sampling_timesteps:
+        fid = FrechetInceptionDistance(
+            normalize=True, reset_real_features=False)
+        fid.persistent(mode=True)
+        fid.requires_grad_(False)
+        
+        for images, _ in test_loader:
+            images = images.to(fid.device)
+            fid.update(images, real=True)
+            
+        fids[sampling_timestep] = fid
 
-    # Load test dataset
-    test_dataset = InfinityDataset(make_dataset(train=False), len(args.sampling_timesteps) * args.num_fid_samples)
-    test_loader = DataLoader(test_dataset, batch_size=args.num_fid_samples, shuffle=False)
+    
+    # Now, generate images all at once, but we save intermediate steps for efficiency
+    for i in tqdm(range(args.num_fid_samples), desc=f'Generating {args.num_fid_samples} images for generation!'):
+        # def make_visualization_timestep(diffusion, device, image_size, timesteps, need_tqdm=False, eta=0, clip_value=1.2):
+        images = make_visualization_timestep(ema_diffusion_model, device, ema_diffusion_model.image_size, args.sampling_timesteps, need_tqdm=False, eta=0, clip_value=1.2)
+        for (timestep, generated_image) in zip(args.sampling_timesteps, ema_diffusion_model):
+            fids[timestep].update(generated_image, real=False)
+                   
 
-    compute_fid_for_timesteps(model, device, test_loader, fid, args)
+    # Calculate FID score for each of the sampling_timesteps
+    # and save to tensorboard
+    for timestep, fid in fids.items():
+        fid_score = fid.compute()
+        print(f"FID score for {timestep} timesteps: {fid_score}")
+        tensorboard.add_scalar(f"fid_{timestep}", fid_score, timestep)
 
 if __name__ == "__main__":
-    main()
+    parser = make_argument_parser()
+    args = parser.parse_args()
+    M = importlib.import_module(args.module)
+    make_model = getattr(M, "make_model")
+    make_dataset = getattr(M, "make_dataset")
+
+    run_inference(args, make_model, make_dataset)
