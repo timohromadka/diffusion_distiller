@@ -114,7 +114,7 @@ def run_inference(args, make_model, make_dataset):
                 imgs_permuted = imgs_trunc.permute(0, 2, 3, 1)
                 
                 # log to tensorboard
-                tensorboard.add_images(f'Generated_images/timestep_{timestep}', imgs_permuted, global_step=timestep, dataformats='NHWC')
+                tensorboard.add_images(f'generated_images', imgs_permuted, global_step=timestep, dataformats='NHWC')
                 logged_images_count += images_to_log   
                 
             # append to fid object with normalize flag to False   
@@ -124,10 +124,10 @@ def run_inference(args, make_model, make_dataset):
     # Calculate FID score for each of the sampling_timesteps
     # and save to tensorboard
     for timestep, fid in fids.items():
-        print(f'Computing FID score for {timestep} timesteps.')
+        print(f'Computing FID score for timestep of: <{timestep}> using {args.num_fid_samples} generated samples.')
         fid_score = fid.compute()
         print(f"FID score for {timestep} timesteps: {fid_score}")
-        tensorboard.add_scalar(f"fid_{timestep}", fid_score, timestep)
+        tensorboard.add_scalar(f"fid", fid_score, timestep)
         
     print('Finished!')
 
