@@ -42,7 +42,7 @@ def distill_model(args, make_model, make_dataset):
     print(' '.join(f'{k}={v}' for k, v in vars(args).items()))
 
     device = torch.device("cuda")
-    train_dataset = test_dataset = InfinityDataset(make_dataset(), args.num_iters)
+    train_dataset = test_dataset = InfinityDataset(make_dataset(), args.num_iters*args.batch_size)
 
     len(train_dataset), len(test_dataset)
 
