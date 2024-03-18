@@ -7,7 +7,6 @@ from torch import nn
 from tqdm import tqdm
 from moving_average import moving_average
 from strategies import *
-import wandb
 
 # Sampling with re-use over numerous timesteps
 @torch.no_grad()
