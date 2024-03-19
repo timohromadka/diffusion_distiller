@@ -43,7 +43,7 @@ def make_visualization_timestep_(diffusion, device, image_size, timesteps, batch
 
 
 def make_visualization_timestep(diffusion, device, image_size, timesteps, batch_size=1, need_tqdm=False, eta=0, clip_value=1.2):
-    images_ = make_visualization_timestep_(diffusion, device, image_size, timesteps, batch_size=batch_size, need_tqdm=True, eta=eta, clip_value=clip_value)
+    images_ = make_visualization_timestep_(diffusion, device, image_size, timesteps, batch_size=batch_size, need_tqdm=need_tqdm, eta=eta, clip_value=clip_value)
     return images_
 
 # Normal code for singular sampling
