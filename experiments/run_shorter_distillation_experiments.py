@@ -1,0 +1,33 @@
+import subprocess
+
+commands = [
+    # MNIST SHORT DISTILLATION EXPERIMENTS
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 1024_512_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/teacher/checkpoint_30000.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 512_256_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/1024_512_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 256_128_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/512_256_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 128_64_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/256_128_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 64_32_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/128_64_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 32_16_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/64_32_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 16_8_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/32_16_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 8_4_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/16_8_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 4_2_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/8_4_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module mnist_model --diffusion GaussianDiffusionDefault --name mnist_exp --dname 2_1_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/mnist_exp/4_2_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64", 
+
+    # CIFAR10 SHORT DISTILLATION EXPERIMENT
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 1024_512_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/teacher/checkpoint_30000.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 512_256_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/1024_512_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 256_128_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/512_256_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 128_64_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/256_128_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 64_32_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/128_64_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 32_16_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/64_32_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 16_8_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/32_16_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 8_4_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/16_8_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 4_2_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/8_4_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64",
+    "python distillate.py --module cifar10_model --diffusion GaussianDiffusionDefault --name cifar10_exp --dname 2_1_sf2_ni128 --skip_factor 2 --base_checkpoint ./checkpoints/cifar10_exp/4_2_sf2_ni128/checkpoint_128.pt --batch_size 64 --num_workers 2 --num_iters 128 --ckpt_step_interval 128 --log_step_interval 64", 
+
+]
+
+for cmd in commands:
+    subprocess.call(cmd, shell=True)
+
+# nohup python experiments/run_shorter_distillation_experiments.py > logs/shorter_distillation_experiments_ni128.log 2>&1 &
