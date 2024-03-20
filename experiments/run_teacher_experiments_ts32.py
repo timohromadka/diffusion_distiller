@@ -17,11 +17,11 @@
 import subprocess
 
 experiments = [
-    {"module": "mnist_model", "name": "mnist_exp", "dname": "training_teacher"},
-    {"module": "cifar10_model", "name": "cifar10_exp", "dname": "training_teacher"},
+    {"module": "mnist_model", "name": "mnist_exp", "dname": "training_teacher_ts32"},
+    {"module": "cifar10_model", "name": "cifar10_exp", "dname": "training_teacher_ts32"},
 ]
 
-common_params = "--num_timesteps 1024 --num_iters 50000 --batch_size 64 --lr 0.0002 --ckpt_step_interval 500 --log_step_interval 500 --num_workers 8"
+common_params = "--num_timesteps 32 --num_iters 30000 --batch_size 64 --lr 0.0002 --ckpt_step_interval 1000 --log_step_interval 500 --num_workers 2"
 
 for exp in experiments:
     cmd = f"python train.py --module {exp['module']} --name {exp['name']} --dname {exp['dname']} {common_params}"
