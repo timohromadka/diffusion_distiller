@@ -28,8 +28,10 @@ class CelebaDataset(Dataset):
 
 class CelebaWrapper(torch.utils.data.Dataset):
 
-    def __init__(self, dataset_dir, resolution):
+    def __init__(self, dataset_dir, resolution, vae_handler=None):
         super().__init__()
+        self.vae_handler = vae_handler
+            
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -38,7 +40,13 @@ class CelebaWrapper(torch.utils.data.Dataset):
         self.dataset = CelebaDataset(dataset_dir, transform=transform, resolution=resolution)
 
     def __getitem__(self, item):
-        return self.dataset[item], 0
+        img = self.dataset[item]
+
+        if self.vae_handler:
+            # maybe must switch to encode_item?
+            return self.vae_handler.encode_item(img), 0
+        else:
+            return img, 0
 
     def __len__(self):
         return len(self.dataset)

@@ -48,7 +48,7 @@ def make_visualization_timestep(diffusion, device, image_size, timesteps, batch_
 
 # Normal code for singular sampling
 @torch.no_grad()
-def p_sample_loop(diffusion, noise, extra_args, device, eta=0, samples_to_capture=-1, need_tqdm=True, clip_value=1.2):
+def p_sample_loop(diffusion, noise, extra_args, device, eta=0, samples_to_capture=-1, need_tqdm=True, clip_value=1.2, vae_handler=False):
     mode = diffusion.net_.training
     diffusion.net_.eval()
     img = noise
@@ -71,6 +71,10 @@ def p_sample_loop(diffusion, noise, extra_args, device, eta=0, samples_to_captur
             next_capture += c_step
     imgs.append(img)
     diffusion.net_.train(mode)
+    
+    # at the very end, we can decode the images if a vae is desired
+    if vae_handler:
+        imgs = vae_handler.decode(imgs)
     return imgs
 
 
@@ -82,10 +86,10 @@ def default_iter_callback(N, loss, last=False):
     None
 
 
-def make_visualization_(diffusion, device, image_size, need_tqdm=False, eta=0, clip_value=1.2):
+def make_visualization_(diffusion, device, image_size, need_tqdm=False, eta=0, clip_value=1.2, vae_handler=False):
     extra_args = {}
     noise = torch.randn(image_size, device=device)
-    imgs = p_sample_loop(diffusion, noise, extra_args, "cuda", samples_to_capture=5, need_tqdm=need_tqdm, eta=eta, clip_value=clip_value)
+    imgs = p_sample_loop(diffusion, noise, extra_args, "cuda", samples_to_capture=5, need_tqdm=need_tqdm, eta=eta, clip_value=clip_value, vae_handler=vae_handler)
     images_ = []
     for images in imgs:
         images = images.split(1, dim=0)
@@ -95,37 +99,39 @@ def make_visualization_(diffusion, device, image_size, need_tqdm=False, eta=0, c
     return images_
 
 
-def make_visualization(diffusion, device, image_size, need_tqdm=False, eta=0, clip_value=1.2):
-    images_ = make_visualization_(diffusion, device, image_size, need_tqdm=need_tqdm, eta=eta, clip_value=clip_value)
+def make_visualization(diffusion, device, image_size, need_tqdm=False, eta=0, clip_value=1.2, vae_handler=False):
+    images_ = make_visualization_(diffusion, device, image_size, need_tqdm=need_tqdm, eta=eta, clip_value=clip_value, vae_handler=vae_handler)
     images_ = images_[0].permute(1, 2, 0).cpu().numpy()
     images_ = (255 * (images_ + 1) / 2).clip(0, 255).astype(np.uint8)
     return images_
 
 
-def make_iter_callback(diffusion, device, checkpoint_path, image_size, tensorboard, log_step_interval, ckpt_step_interval, need_tqdm=False):
+def make_iter_callback(diffusion, device, checkpoint_path, image_size, tensorboard, log_step_interval, ckpt_step_interval, need_tqdm=False, vae_handler=False):
     state = {
         "last_ckpt_step": 0,
         "last_log_step": 0,
         "image_log_steps": [16, 64, 128], # i've decided to hard code these in because i wanted to see what earlier time steps look like
+        # "checkpoint_steps": [16, 64, 128, 256],
+        "checkpoint_steps": []
     }
 
-    def iter_callback(N, loss, last=False):
+    def iter_callback(N, loss, last=False, vae_handler=vae_handler):
         tensorboard.add_scalar("loss", loss, N)
         
-        if N - state["last_ckpt_step"] >= ckpt_step_interval or last:
+        if N - state["last_ckpt_step"] >= ckpt_step_interval or last or N in state["checkpoint_steps"]:
             torch.save({"G": diffusion.net_.state_dict(), "n_timesteps": diffusion.num_timesteps, "time_scale": diffusion.time_scale}, os.path.join(checkpoint_path, f"checkpoint_{N}.pt"))
             print(f"Checkpoint saved at step {N}.")
             state["last_ckpt_step"] = N
 
         if N - state["last_log_step"] >= log_step_interval or last:
-            images_ = make_visualization(diffusion, device, image_size, need_tqdm)
+            images_ = make_visualization(diffusion, device, image_size, need_tqdm, vae_handler=vae_handler)
             images_ = cv2.cvtColor(images_, cv2.COLOR_BGR2RGB)
             tensorboard.add_image("visualization", images_, global_step=N, dataformats='HWC')
             print(f"Logged images at step {N}.")
             state["last_log_step"] = N
             
         if N in state["image_log_steps"]:
-            images_ = make_visualization(diffusion, device, image_size, need_tqdm)
+            images_ = make_visualization(diffusion, device, image_size, need_tqdm, vae_handler=vae_handler)
             images_ = cv2.cvtColor(images_, cv2.COLOR_BGR2RGB)
             tensorboard.add_image(f"visualization", images_, global_step=N, dataformats='HWC')
             print(f"Logged special images at step {N}.")

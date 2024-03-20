@@ -8,6 +8,7 @@ from moving_average import init_ema_model
 from torch.utils.tensorboard import SummaryWriter
 
 from train_utils import *
+from vae_handler import VAEHandler
 
 def make_argument_parser():
     parser = argparse.ArgumentParser()
@@ -26,7 +27,10 @@ def make_argument_parser():
     # parser.add_argument("--ckpt_interval", help="Checkpoints saving interval in minutes.", type=int, default=30)
     parser.add_argument("--ckpt_step_interval", help="Checkpoints saving interval in steps.", type=int, default=1000)
     parser.add_argument("--log_step_interval", help="Log interval in steps for image generation.", type=int, default=1000)
-    parser.add_argument("--num_workers", type=int, default=-1)
+    parser.add_argument("--num_workers", type=int, default=1)
+    
+    parser.add_argument("--use_vae", action='store_true')
+    parser.add_argument("--vae_name", type=str, default=None, choices=['ft-mse'])
     
     # wandb args
     parser.add_argument("--wandb_run_name", help="W&B run name for logging.", type=str, default=datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -48,8 +52,20 @@ def train_model(args, make_model, make_dataset):
     # wandb.init(project=args.project_name, entity=args.wandb_entity, name=args.wandb_run_name, config=args)
 
     device = torch.device("cuda")
-    train_dataset = InfinityDataset(make_dataset(), args.num_iters*args.batch_size)
-    test_dataset = InfinityDataset(make_dataset(train=False), args.num_iters*args.batch_size)
+
+    if args.use_vae:
+        if args.vae_name == 'ft-mse':
+            model_path = "models/weights/vae-ft-mse-840000-ema-pruned.ckpt"
+            vae_handler = VAEHandler(model_path=model_path, device=device)
+        else:
+            raise NotImplementedError(f"The VAE option <{args.vae_name}> is not yet implemented.")
+
+    else:
+        args.vae_name = None
+        vae_handler = None
+
+    train_dataset = InfinityDataset(make_dataset(vae_handler=vae_handler), args.num_iters*args.batch_size)
+    test_dataset = InfinityDataset(make_dataset(train=False, vae_handler=vae_handler), args.num_iters*args.batch_size)
 
     len(train_dataset), len(test_dataset)
 
@@ -58,7 +74,7 @@ def train_model(args, make_model, make_dataset):
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
-    teacher_ema = make_model().to(device)
+    teacher_ema = make_model(vae_name=args.vae_name).to(device)
 
     checkpoints_dir = os.path.join("checkpoints", args.name, args.dname)
     if not os.path.exists(checkpoints_dir):
@@ -77,8 +93,8 @@ def train_model(args, make_model, make_dataset):
         D = getattr(M, args.diffusion)
         return D(model, betas, time_scale=time_scale)
 
-    teacher = make_model().to(device)
-    teacher_ema = make_model().to(device)
+    teacher = make_model(vae_name=args.vae_name).to(device)
+    teacher_ema = make_model(vae_name=args.vae_name).to(device)
 
     if args.checkpoint_to_continue != "":
         ckpt = torch.load(args.checkpoint_to_continue)
@@ -97,7 +113,7 @@ def train_model(args, make_model, make_dataset):
 
     image_size = teacher.image_size
 
-    on_iter = make_iter_callback(teacher_ema_diffusion, device, checkpoints_dir, image_size, tensorboard, args.log_step_interval, args.ckpt_step_interval, False)
+    on_iter = make_iter_callback(teacher_ema_diffusion, device, checkpoints_dir, image_size, tensorboard, args.log_step_interval, args.ckpt_step_interval, False, vae_handler=vae_handler)
     diffusion_train = DiffusionTrain(scheduler)
     diffusion_train.train(train_loader, teacher_diffusion, teacher_ema, args.lr, device, make_extra_args=make_condition, on_iter=on_iter)
     print("Finished.")
