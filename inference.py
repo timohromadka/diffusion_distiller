@@ -38,6 +38,7 @@ def make_argument_parser():
     parser.add_argument("--num_fid_samples", default=50, type=int, help="Number of images to generate for FID calculation.")
     parser.add_argument("--sampling_timesteps", nargs="+", type=int, default=[256, 512, 1024], help="Timesteps for image sampling.")
     parser.add_argument("--num_images_to_log", type=int, default=16, help="How many images to save for logging purposes?.")
+    parser.add_argument("--clip_value", type=float, default=1.2, help="What clip value to use for clipping of images during inference.")
     return parser
     
 def run_inference(args, make_model, make_dataset):
@@ -95,7 +96,7 @@ def run_inference(args, make_model, make_dataset):
     num_batches = (args.num_fid_samples + args.batch_size - 1) // args.batch_size
     for batch_index in tqdm(range(num_batches), desc='Generating images in batches'):
         batch_size = min(args.batch_size, args.num_fid_samples - batch_index * args.batch_size)
-        images_for_each_timestep = make_visualization_timestep(ema_diffusion_model, device, image_size, args.sampling_timesteps, batch_size=batch_size, need_tqdm=True, eta=0, clip_value=1.2)
+        images_for_each_timestep = make_visualization_timestep(ema_diffusion_model, device, image_size, args.sampling_timesteps, batch_size=batch_size, need_tqdm=True, eta=0, clip_value=args.clip_value)
     
         for timestep, imgs in zip(args.sampling_timesteps, images_for_each_timestep):
             # duplicate channel to reach 3 channels if grayscale image
