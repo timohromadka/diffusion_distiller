@@ -30,7 +30,7 @@ def make_argument_parser():
     parser.add_argument("--num_workers", type=int, default=1)
     
     parser.add_argument("--use_vae", action='store_true')
-    parser.add_argument("--vae_name", type=str, default=None, choices=['ft-mse'])
+    parser.add_argument("--vae_name", type=str, default=None, choices=['ft-mse', 'v1-4'])
     
     # wandb args
     parser.add_argument("--wandb_run_name", help="W&B run name for logging.", type=str, default=datetime.now().strftime("%Y%m%d_%H%M%S"))
@@ -56,6 +56,9 @@ def train_model(args, make_model, make_dataset):
     if args.use_vae:
         if args.vae_name == 'ft-mse':
             model_path = "models/weights/vae-ft-mse-840000-ema-pruned.ckpt"
+            vae_handler = VAEHandler(model_path=model_path, device=device)
+        elif args.vae_name == 'v1-4':
+            model_path = "CompVis/stable-diffusion-v1-4"
             vae_handler = VAEHandler(model_path=model_path, device=device)
         else:
             raise NotImplementedError(f"The VAE option <{args.vae_name}> is not yet implemented.")
