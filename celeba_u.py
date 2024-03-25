@@ -6,7 +6,7 @@ BASE_NUM_STEPS = 1024
 BASE_TIME_SCALE = 1
 
 def make_model(vae_name=None):
-    if vae_name == 'ft-mse':
+    if vae_name in ['ft-mse', 'v1-4']:
         net = UNet(
             in_channel = 4,
             out_channel = 4,
