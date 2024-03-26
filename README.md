@@ -1,5 +1,13 @@
 # R255: Improving Progressive Distillation in Diffusion Models
 
+This is the code repository for the ACS R255 Project. The initial code base was forked from [Hramchenko's repository]([url](https://github.com/Hramchenko/diffusion_distiller)). However, I needed to modify it to test and run my own experiments. My modifications to the code are:
+
+- Integrated MNIST and Cifar10 support
+- Fixed bugs within UNet class
+- Integrated skip-factors for experimentation
+- Added FID calculation and logging
+- Incorporated improved tensorboard logging
+
 This repository holds the code necessary to
 - train teacher diffusion models (`train.py`)
 - distillate knowledge into student models (`distillate.py`)
