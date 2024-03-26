@@ -8,7 +8,7 @@ This repository holds the code necessary to
 The following is supported by the pipeline:
 - FID calculation
 - Tensorboard logging (loss, progression of samples, final sample results, fid)
-- 3 dataset + accompanying models (Cifar10, MNIST, Celeba 256x256)
+- 3 datasets + accompanying models (Cifar10, MNIST, Celeba 256x256)
 - Autoencoder integration (`CompVis/stable-diffusion-v1-4`)
 
 ## How to use
